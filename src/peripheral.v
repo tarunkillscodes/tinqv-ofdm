@@ -34,21 +34,21 @@ module tqvp_example (
     always @(*) begin
         next_state = state;
         case (state)
-            IDLE:   if (status_reg[0]) next_state = MAP;
+            IDLE:   if (control_reg[0]) next_state = MAP;
             MAP:    next_state = OUTPUT;
-            OUTPUT: if (bit_count == 0) next_state = IDLE;
+            OUTPUT: if (status_reg[2:1] == 2'd0) next_state = IDLE;
                     else next_state = MAP;
         endcase
     end
     
     // State registers and writing output to the out peripheral
-    always @(posedge clk or negedge rst) begin
-        if (!rst) begin
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             state      <= IDLE;
             status_reg  <= 8'd0;
         end else begin
             state <= next_state;
-            if (state == IDLE && valid_in) begin
+            if (state == IDLE && control_reg[2]) begin
                 Data_in <= data_in;
                 status_reg[4:2]  <= 3'd8;
             end else if (state == OUTPUT) begin
@@ -84,7 +84,7 @@ module tqvp_example (
                 endcase
             end else if (control_reg[1] == 1) begin
                 // 16-QAM mapping (Gray code)
-                bit_group = Data_in[3:0];
+        
                 case (Data_in[3:0])
                     4'b0000: begin Data_out[3:0] =-3; Data_out[7:4]=-3; end
                     4'b0001: begin Data_out[3:0] =-3; Data_out[7:4]=-1; end
