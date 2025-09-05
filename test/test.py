@@ -12,6 +12,86 @@ from tqv import TinyQV
 # The peripheral number is not used by the test harness.
 PERIPHERAL_NUM = 16
 
+# Register map
+CTRL   = 0x0
+STATUS = 0x1
+DIN    = 0x2
+DOUT   = 0x3
+
+# Control bits
+CTRL_START  = 1 << 0
+CTRL_SCHEME = 1 << 1
+CTRL_VALID  = 1 << 2
+
+@cocotb.test()
+async def test_qpsk_mapping(dut):
+    dut._log.info("QPSK test start")
+
+    clock = Clock(dut.clk, 100, units="ns")
+    cocotb.start_soon(clock.start())
+
+    tqv = TinyQV(dut, PERIPHERAL_NUM)
+    await tqv.reset()
+
+    # Start QPSK mapping (scheme=0)
+    await tqv.write_reg(0x0,5)
+    
+    # Write input bits for QPSK (use only 2 LSBs)
+    await tqv.write_reg(0x2, 0b01)  # expect I=+1, Q=-1
+
+    # Wait some cycles
+    await ClockCycles(dut.clk, 20)
+
+    status = await tqv.read_reg(0x1)
+    bitcount = (status >> 1) & 0xF   # extract bits [4:1]
+    dut._log.info(f"Bitcount = {bitcount}")
+
+    # Read status
+    status = await tqv.read_reg(0x1)
+    assert (status & 0x01) == 1, "QPSK: ready bit not set"
+
+    # Read output symbol
+    dout = await tqv.read_reg(0x3)
+    q = dout & 0x0F
+    i = (dout >> 4) & 0x0F
+    dut._log.info(f"QPSK mapped output: I={i}, Q={q}")
+
+    # Example check: For input=01, expect I=+1, Q=-1
+    assert i == 1 and q == 0xF, "QPSK output mismatch"
+
+
+@cocotb.test()
+async def test_qam16_mapping(dut):
+    dut._log.info("16-QAM test start")
+
+    clock = Clock(dut.clk, 100, units="ns")
+    cocotb.start_soon(clock.start())
+
+    tqv = TinyQV(dut, PERIPHERAL_NUM)
+    await tqv.reset()
+    # Start 16-QAM mapping (scheme=1)
+    await tqv.write_reg(0x0, CTRL_START | CTRL_VALID | CTRL_SCHEME)
+
+    # Write input bits for 16-QAM (use 4 LSBs)
+    await tqv.write_reg(0x2, 0b1010)  # should map to I=+3, Q=+3
+
+    # Wait cycles
+    await ClockCycles(dut.clk, 5)
+
+    # Read status
+    status = await tqv.read_reg(0x1)
+    assert (status & 0x01) == 1, "16-QAM: ready bit not set"
+
+    # Read output symbol
+    dout = await tqv.read_reg(0x3)
+    q = dout & 0x0F
+    i = (dout >> 4) & 0x0F
+    dut._log.info(f"16-QAM mapped output: I={i}, Q={q}")
+
+    # Expected: I=3, Q=3
+    assert i == 3 and q == 3, "16-QAM output mismatch"
+
+'''
 @cocotb.test()
 async def test_project(dut):
     dut._log.info("Start")
@@ -49,3 +129,4 @@ async def test_project(dut):
 
     # Keep testing the module by changing the input values, waiting for
     # one or more clock cycles, and asserting the expected output values.
+ '''

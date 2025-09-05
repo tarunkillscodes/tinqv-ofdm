@@ -13,7 +13,7 @@ module tqvp_ofdm (
     input         data_write,   // Data write request from the TinyQV core.
     input [7:0]   data_in,      // Data in to the peripheral, valid when data_write is high.
 
-    output [7:0]  data_out      // Data out from the peripheral, set this in accordance with the supplied address
+    output reg [7:0]  data_out      // Data out from the peripheral, set this in accordance with the supplied address
 );
 
 //-----------CSR REGISTERS -------------------//
@@ -34,10 +34,10 @@ module tqvp_ofdm (
     always @(*) begin
         next_state = state;
         case (state)
-            IDLE:   if (control_reg[0]) next_state = MAP;
+            IDLE: if (control_reg[0] && control_reg[2]) next_state = MAP;       // I have added the control_reg[2] because or else the fsm will just transition to the next state.
             MAP:    next_state = OUTPUT;
             OUTPUT: next_state = IDLE;
-                  
+            default: next_state = IDLE;                  
         endcase
     end
     
@@ -53,15 +53,16 @@ module tqvp_ofdm (
                 status_reg[4:1]  <= 4'd8;
             end else if (state == OUTPUT) begin
                 //status_reg[0] <= 1;
-                if (control_reg[1] == 1'b0) begin
+                if(status_reg[4:1] == 4'd0) begin 
+                    status_reg[0] <= 1;
+                end else if (control_reg[1] == 1'b0) begin
                     Data_in <= Data_in >> 2; // QPSK uses 2 bits
                     status_reg[4:1]  <= status_reg[4:1] - 2;
                 end else if (control_reg[1] == 1'b1) begin
                     Data_in <= Data_in >> 4; // 16-QAM uses 4 bits
                     status_reg[4:1]  <= status_reg[4:1] - 4;
-                end else if(status_reg[4:1] == 4'd0) begin 
-                    status_reg[0] <= 1;
-            end
+                end
+             end    
         end
     end
 
@@ -106,7 +107,7 @@ module tqvp_ofdm (
                 endcase
             end
         end
-    end
+    end  
 //-------------REGSITER WRITE ------------------------//
 
 
@@ -118,6 +119,7 @@ always @(posedge clk or negedge rst_n) begin
             case (address)
                 4'h0: control_reg <= data_in;
                 4'h2: Data_in     <= data_in;
+                default: ;
             endcase
         end
     end
@@ -125,15 +127,11 @@ always @(posedge clk or negedge rst_n) begin
 
 //--------------REGSISTER READ ------------------//
 
-  always @(*) begin
-        case (address)
-            4'h0: data_out = control_reg;
-            4'h1: data_out = status_reg;
-            4'h2: data_out = Data_in;
-            4'h3: if(status_reg[0] == 1)data_out = Data_out;
-            default: data_out = 8'h00;
-        endcase
-    end
-
-
-
+ // Memory-mapped readback
+assign data_out = (address == 4'h0) ? control_reg :
+                  (address == 4'h1) ? status_reg  :
+                  (address == 4'h2) ? Data_in     :
+                  (address == 4'h3 && status_reg[0]) ? Data_out :
+                  8'h00;
+ 
+endmodule
