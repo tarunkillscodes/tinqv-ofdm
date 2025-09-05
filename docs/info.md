@@ -54,11 +54,9 @@ This peripheral provides a memory-mapped interface for the CPU to control and mo
 |---------|-------------|-------------|-----------------------------------------------------------------------------|
 | 0x0     | Control     | [0] start   | Start modulation process (1 = start)                                        |
 |         |             | [1] scheme  | Select modulation scheme (0 = QPSK, 1 = 16-QAM)                             |
-|         |             |             | valid in(if valid )                                                                             
-|         |             | [7:3]       | Reserved                                                                    |
+|         |             | [2] valid   | valid in(if the input is valid an you want to start mapping)                |                                   |         |             | [7:3]       | Reserved                                                                    |
 | 0x1     | Status      | [0] ready   | Indicates dataout is valid (1 = ready)                                      |
-|         |             | [1] valid   | Asserted when symbol output is valid                                        |
-|         |             | [4:2] count | Remaining bit count (decreases as bits are consumed)                        |
+|         |             | [4:1] count | Remaining bit count of input to be mapped(decreases as bits are consumed)   |                     
 |         |             | [7:5]       | Reserved                                                                    |
 | 0x2     | Data In     | [7:0]       | Input data (8-bit payload to be mapped into QPSK/16-QAM symbols)            |
 | 0x3     | Data Out    | [3:0] Q     | Q (quadrature) component of symbol                                          |
