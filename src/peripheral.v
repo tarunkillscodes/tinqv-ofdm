@@ -18,7 +18,7 @@ module tqvp_example (
 
 //-----------CSR REGISTERS -------------------//
     reg [7:0] control_reg;//start,schemesel(1bits),valid_in
-    reg [7:0] status_reg;//ready_out,bitcount(2 bits)
+    reg [7:0] status_reg;//ready_out,bitcount(3 bits)
     reg [7:0] Data_in;
     reg [7:0] Data_out;
 
@@ -36,8 +36,8 @@ module tqvp_example (
         case (state)
             IDLE:   if (control_reg[0]) next_state = MAP;
             MAP:    next_state = OUTPUT;
-            OUTPUT: if (status_reg[2:1] == 2'd0) next_state = IDLE;
-                    else next_state = MAP;
+            OUTPUT: next_state = IDLE;
+                  
         endcase
     end
     
@@ -50,16 +50,16 @@ module tqvp_example (
             state <= next_state;
             if (state == IDLE && control_reg[2]) begin
                 Data_in <= data_in;
-                status_reg[4:2]  <= 3'd8;
+                status_reg[3:1]  <= 3'd8;
             end else if (state == OUTPUT) begin
-                status_reg[1] <= 1;
+                //status_reg[0] <= 1;
                 if (control_reg[1] == 1'b0) begin
                     Data_in <= Data_in >> 2; // QPSK uses 2 bits
-                    status_reg[4:2]  <= status_reg[4:2] - 2;
+                    status_reg[3:1]  <= status_reg[3:1] - 2;
                 end else if (control_reg[1] == 1'b1) begin
                     Data_in <= Data_in >> 4; // 16-QAM uses 4 bits
-                    status_reg[4:2]  <= status_reg[4:2] - 4;
-                end else if(status_reg[4:2] == 3'd0) begin 
+                    status_reg[3:1]  <= status_reg[3:1] - 4;
+                end else if(status_reg[3:1] == 3'd0) begin 
                     status_reg[0] <= 1;
             end
         end
@@ -69,7 +69,7 @@ module tqvp_example (
     // Symbol mapping
     always @(*) begin
         Data_out  = 0;
-        status_reg[1] = 0;
+      //  status_reg[1] = 0;
         
         if (state == MAP) begin
             if (control_reg[1] == 0) begin
